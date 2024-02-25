@@ -1,0 +1,229 @@
+<html>
+    <head>
+        <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    </head>
+    <body> 
+        <script>
+
+            var plataforms;
+            var player;
+            var cursors;
+            var stars;
+            var score = 0;
+            var scoreText ;
+            var bombs;
+            var explosao;
+            var gameOver;
+
+            //config de ambiente que vai ser montado o game
+            const config = {
+                type : Phaser.AUTO,
+                width: 800,
+                height: 600,
+
+                //define o tipo da física
+                physics:{
+                    default: 'arcade',
+                    arcade:{
+                        gravity: { y: 300},
+                        debug: false
+                    }
+                },
+                scene:{
+                    preload: preload,
+                    create: create,
+                    update: update,
+                }
+            };
+            //assets pré carregados
+            function preload ()
+            {
+                this.load.image('sky', 'assets/sky.png');
+                this.load.image('star', 'assets/star.png');
+                this.load.image('bomb', 'assets/bomb.png');
+                this.load.image('ground','assets/plataform.png');
+                this.load.image('over', 'assets/gameOver.png');
+                this.load.spritesheet(
+                    'dude',
+                    'assets/dude.png',
+                    {frameWidth: 32 , frameHeight: 48}
+                )
+                this.load.spritesheet(
+                    'explosion',
+                    'assets/explosao.png',
+                    {frameWidth:158 , frameHeight: 158}
+                )
+ 
+            }
+
+            function create ()
+            {
+                this.add.image(400, 300, 'sky');
+
+                //vai deixar as plataformas fisicas, aonde as leis da fisica não se aplicam
+                plataforms = this.physics.add.staticGroup()
+
+                //Vai adicionar as plataformas
+                plataforms.create(40, 590, 'ground');
+                plataforms.create(120, 590, 'ground');
+                plataforms.create(225, 590, 'ground');
+                plataforms.create(330, 590, 'ground');
+                plataforms.create(435, 590, 'ground');
+                plataforms.create(530, 590, 'ground');
+                plataforms.create(635, 590, 'ground');
+                plataforms.create(742, 590, 'ground');
+
+                plataforms.create(600, 400, 'ground');
+                plataforms.create(65, 260, 'ground');
+                plataforms.create(730, 220, 'ground');
+                plataforms.create(300, 435, 'ground');
+                plataforms.create(400, 200, 'ground');
+                plataforms.create(200, 435, 'ground');
+                plataforms.create(700, 400, 'ground');
+
+
+
+                // Vou setar a gravidade do player e aonde ele vai cair
+                player = this.physics.add.sprite(100, 400 , 'dude');
+
+                //Vai fazer o player quicar ao cair
+                player.setBounce(0.2);
+
+                //Vai dizer ao player sobre a colisão  do mundo
+                player.setCollideWorldBounds(true);
+
+                //Vai adicionar a colisão aos componentes
+                this.physics.add.collider(player, plataforms);
+
+                //Vai criar a animação do player
+                this.anims.create({
+                    key:'left',
+                    frames: this.anims.generateFrameNumbers('dude', {start: 0, end: 3}),
+                    frameRate:10,
+                    repeat: -1
+                })
+
+                this.anims.create({
+                    key:'right',
+                    frames: this.anims.generateFrameNumbers('dude', {start: 5, end: 8}),
+                    frameRate:10,
+                    repeat: -1
+                })
+
+                this.anims.create({
+                    key:'turn',
+                    frames: [{key: 'dude', frame: 4}],
+                    frameRate:10,
+                })
+
+                //Vai fazer a animação da bomba
+                this.anims.create({
+                    key: 'explode',
+                    frames: this.anims.generateFrameNumbers('explosion', {start: 0, end:9}),
+                    frameRate: 5,
+                    repeat:0,
+                })
+                //Vai setar os movimentos do player
+                cursors = this.input.keyboard.createCursorKeys();
+
+                //Vai setar as estrelas para cairem de acordo com o descrito
+                stars = this.physics.add.group({
+                    key: 'star',
+                    repeat: 11,
+                    setXY: {x: 12, y: 0, stepX: 70}
+                });
+
+                //Vai dar colisão das estrelas com as plataformas
+                this.physics.add.collider(stars, plataforms);
+
+                //Vai adicionar a velocidade e pulo das estrelas
+                stars.children.iterate(function (child) 
+                {
+                    child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+                });
+
+                //Vai fazer o personagem coletar a estrela
+                this.physics.add.overlap(player, stars, collectStar, null, this);
+
+                //Vai adicionar o Texto do score
+                scoreText = this.add.text(16, 16, 'Score: 0', {fontSize: '30px', fill: '#000'});
+
+                //Vai tratar das colisões da bomba com o player e a plataforma
+                bombs = this.physics.add.group();
+                this.physics.add.collider(bombs, plataforms);
+                this.physics.add.collider(player, bombs, hitBomb, null, this);
+              
+            }
+
+            //Funão que vai tratrar do hiBomb do personagem
+            function hitBomb(player, bomb)
+            {
+                bomb.disableBody(true, true);
+                this.physics.pause();
+                player.setTint(0xff0000);
+                player.anims.play('turn');
+                this.add.image(400,300, 'over');
+
+
+                //Vai trazer a animação quando a bomba atingir o jogador
+                explosao = this.add.sprite(bomb.x, bomb.y, 'explosion');
+                explosao.play('explode');
+
+              
+            }
+            //Função para o personagem pegar a estrela
+            function collectStar (player, star)
+                {
+                    star.disableBody(true, true);
+                    score += 10;
+                    scoreText.setText('Score: ' + score);
+
+                    //Vai setar as estrelas para o mesmo lugar caso todas elas forem pegar
+                    if(stars.countActive(true) === 0)
+                    {
+                        stars.children.iterate(function (child) {
+                            child.enableBody(true, child.x, 0, true, true);
+                        });
+
+                    //Lógica para a queda da bomba
+                    var x = (player.x < 400) ? Phaser.Math.Between(400, 800) :  
+                                               Phaser.Math.Between(0, 400) ;
+
+                    //Mais informações para a queda da bomba
+                    var bomb = bombs.create(x, 16, 'bomb');
+                    bomb.setBounce(1);
+                    bomb.setCollideWorldBounds(true);
+                    bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+
+                    }
+                }
+            function update ()
+            //Função pra setar os movimentos
+            {
+                if(cursors.left.isDown)
+                {
+                    player.setVelocityX(-160);
+                    player.anims.play('left', true);    
+                }
+                else if(cursors.right.isDown)
+                {
+                    player.setVelocityX(160);
+                    player.anims.play('right', true);    
+                }
+                else
+                {
+                    player.setVelocityX(0);
+                    player.anims.play('turn');    
+                }
+
+                //Função para salto do player
+                if(cursors.up.isDown && player.body.touching.down)
+                {
+                    player.setVelocityY(-330);
+                }
+            }
+
+            const game = new Phaser.Game(config);
+        </script>
+    </body>
+</html>
